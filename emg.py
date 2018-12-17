@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.model_selection import train_test_split
-import keras
 from keras.utils import np_utils
 from keras.preprocessing.image import random_rotation, random_shift, random_zoom
 from keras.layers.convolutional import Conv2D
@@ -10,8 +9,13 @@ from keras.models import Sequential
 from keras.callbacks import LearningRateScheduler
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
+import matplotlib.pyplot as plt
 
-def main() :
+################################
+######### データの前処理 ##########
+################################
+
+def Preprocess() :
     emg_list = []
     for n in range(1,6) :
         file_name = 'emg%d.csv' % (n)
@@ -29,10 +33,17 @@ def main() :
     
     emg_list = emg_list.reshape(5000, 45, 8, 1)
     (x_train, x_val, y_train, y_val) = train_test_split(emg_list, out_put, test_size=0.2)
-
     
+    return x_train, x_val, y_train, y_val
+
+
+################################
+######### モデルの構築 #########
+################################
+    
+def BuildCNN(ipshape=(45,8,1), num_classes=5) :
     model = Sequential()
-    model.add(Conv2D(24, 3, padding='same', input_shape=(45,8,1)))
+    model.add(Conv2D(24, 3, padding='same', input_shape=ipshape))
     model.add(Activation('relu'))
     model.add(Conv2D(48, 3))
     model.add(Activation('relu'))
@@ -50,25 +61,49 @@ def main() :
     model.add(Activation('relu'))
     model.add(Dropout(0.5))
     
-    model.add(Dense(5))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     
-    adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+    adam = Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
     model.compile(loss='categorical_crossentropy',
                   optimizer=adam,
                   metrics=['accuracy'])
     model.summary()
+    return model
     
+def train(model,x_train, x_val, y_train, y_val) :
     mcp = ModelCheckpoint(filepath='best.hdf5', monitor='val_loss', verbose=1, save_best_only=True, mode='auto')
     
     print(">> 学習開始")
-    hist = model.fit(x_train, y_train,
+    history = model.fit(x_train, y_train,
                      batch_size=32,
                      verbose=1,
-                     epochs=50000,
+                     epochs=10,
                      validation_data=[x_val, y_val],
                      callbacks=[mcp])
+            ### add to show graph
+    return history
+    
+def plot_history(history):
+    # print(history.history.keys())
 
-if __name__ == '__main__':
-    main()
+    # 精度の履歴をプロット
+    plt.plot(history.history['acc'], marker='.')
+    plt.plot(history.history['val_acc'], marker='.')
+    plt.title('model accuracy')
+    plt.xlabel('epoch')
+    plt.ylabel('accuracy')
+    plt.grid()
+    plt.legend(['acc', 'val_acc'], loc='lower right')
+    plt.show()
+
+    # 損失の履歴をプロット
+    plt.plot(history.history['loss'], marker='.')
+    plt.plot(history.history['val_loss'], marker='.')
+    plt.title('model loss')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.grid()
+    plt.legend(['loss', 'val_loss'], loc='lower right')
+    plt.show()
     
