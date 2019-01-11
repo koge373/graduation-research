@@ -17,28 +17,33 @@ import matplotlib.pyplot as plt
 
 def Preprocess() :
     emg_list = []
-    for n in range(1,6) :
-        file_name = 'emg%d.csv' % (n)
+    for n in range(1,16) :
+        file_name = 'emg_data/emg%d.csv' % (n)
         data = np.loadtxt(file_name,delimiter=",",skiprows = 1, dtype = np.float32)
-        emg_list.extend(np.split(data,1000))
-    emg_list = np.array(emg_list)/125.0
-    #print(np.array(emg_list).shape)
+        emg_list.extend(np.split(data,1000)) #45個で１塊のデータを1000個×8極
+    emg_list = np.array(emg_list)/125.0 #値を小数に
+   # print(np.array(emg_list).shape)
     #print(emg_list)
     
-    out_put = np.zeros(5000)
+    out_put = np.zeros(15000)
     for n in range (5) :
         out_put[n*1000:n*1000+1000] = n
-    out_put = np_utils.to_categorical(out_put)  
-    #print(out_put.shape)
+    for n in range(6,11) :
+        out_put[n*1000:n*1000+1000] = n-6
+    for n in range(11,16) :
+        out_put[n*1000:n*1000+1000] = n-11
+
+
+    out_put = np_utils.to_categorical(out_put)  # 自然数をベクトルに変換
+   # print(out_put.shape)
     
-    emg_list = emg_list.reshape(5000, 45, 8, 1)
+    emg_list = emg_list.reshape(15000, 45, 8, 1)
     (x_train, x_val, y_train, y_val) = train_test_split(emg_list, out_put, test_size=0.2)
     
     return x_train, x_val, y_train, y_val
 
-
 ################################
-######### モデルの構築 #########
+########## モデルの構築 ###########
 ################################
     
 def BuildCNN(ipshape=(45,8,1), num_classes=5) :
@@ -78,11 +83,15 @@ def train(model,x_train, x_val, y_train, y_val) :
     history = model.fit(x_train, y_train,
                      batch_size=32,
                      verbose=1,
-                     epochs=10,
+                     epochs=100,
                      validation_data=[x_val, y_val],
                      callbacks=[mcp])
             ### add to show graph
     return history
+
+################################
+########## グラフの作成 ###########
+################################   
     
 def plot_history(history):
     # print(history.history.keys())
@@ -106,4 +115,9 @@ def plot_history(history):
     plt.grid()
     plt.legend(['loss', 'val_loss'], loc='lower right')
     plt.show()
+
+def encode(data):
+     data = np_utils.to_categorical(data) 
+     return data
+    
     
